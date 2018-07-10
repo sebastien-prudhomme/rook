@@ -1,0 +1,46 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ template "rook-cockroachdb-operator.fullname" . }}
+  labels:
+    app: {{ template "rook-cockroachdb-operator.name" . }}
+    chart: {{ template "rook-cockroachdb-operator.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - create
+  - update
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - create
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - create
+- apiGroups:
+  - cockroachdb.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+{{- end }}
