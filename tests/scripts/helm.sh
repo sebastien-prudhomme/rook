@@ -3,11 +3,13 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 install() {
     #Download and unpack helm
-    local dist=`uname -s`
-    dist=`echo ${dist} | tr "[A-Z]" "[a-z]"`
-    wget https://storage.googleapis.com/kubernetes-helm/helm-v2.6.0-${dist}-amd64.tar.gz
-    tar -zxvf helm-v2.6.0-${dist}-amd64.tar.gz
-    sudo mv ${dist}-amd64/helm /usr/local/bin/helm
+    local dist
+    dist="$(uname -s)"
+    # shellcheck disable=SC2021
+    dist=$(echo "${dist}" | tr "[A-Z]" "[a-z]")
+    wget "https://storage.googleapis.com/kubernetes-helm/helm-v2.6.0-${dist}-amd64.tar.gz"
+    tar -zxvf "helm-v2.6.0-${dist}-amd64.tar.gz"
+    sudo mv "${dist}-amd64/helm" /usr/local/bin/helm
 
     #Init helm
     helm init
@@ -36,7 +38,7 @@ install() {
     kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
     kubectl -n kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"spec": {"serviceAccountName": "tiller"}}}}'
 
-    #set up local repo for helm and add local/rook
+    #set up local repo for helm and add local/rook-ceph
     helm repo remove local
     helm repo remove stable
 
@@ -45,33 +47,36 @@ install() {
     sleep 10 # wait for helm serve to start
 
     helm repo add local http://127.0.0.1:8879
-    helm search rook
+    helm search rook-ceph
 
 }
 
 helm_reset() {
     helm reset
-    local dist=`uname -s`
-    dist=`echo ${dist} | tr "[A-Z]" "[a-z]"`
+    local dist
+    dist="$(uname -s)"
+    # shellcheck disable=SC2021
+    dist=$(echo "${dist}" | tr "[A-Z]" "[a-z]")
     sudo rm /usr/local/bin/helm
-    rm -rf ${dist}-amd64/
-    rm helm-v2.6.0-${dist}-amd64.tar.gz*
-    ps -ef | grep helm | grep -v grep | awk '{print $2}'| xargs kill -9
+    rm -rf "${dist}-amd64/"
+    rm "helm-v2.6.0-${dist}-amd64.tar.gz"*
+    pgrep helm | grep -v grep | awk '{print $2}'| xargs kill -9
 
 }
 
 
 case "${1:-}" in
-  up)
-    install
-    cat _output/version | xargs ${scriptdir}/makeTestImages.sh tag amd64 || true
-    helm repo add stable https://kubernetes-charts.storage.googleapis.com/
-    ;;
-  clean)
-    helm_reset
-    ;;
-  *)
-    echo "usage:" >&2
-    echo "  $0 up" >&2
-    echo "  $0 clean" >&2
+    up)
+        install
+        # shellcheck disable=2002
+        cat _output/version | xargs "${scriptdir}/makeTestImages.sh" tag amd64 || true
+        helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+        ;;
+    clean)
+        helm_reset
+        ;;
+    *)
+        echo "usage:" >&2
+        echo "  $0 up" >&2
+        echo "  $0 clean" >&2
 esac

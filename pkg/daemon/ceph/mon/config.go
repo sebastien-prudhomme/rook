@@ -92,7 +92,7 @@ type GlobalConfig struct {
 	OsdPoolDefaultPgpNum     int    `ini:"osd pool default pgp num,omitempty"`
 	OsdMaxObjectNameLen      int    `ini:"osd max object name len,omitempty"`
 	OsdMaxObjectNamespaceLen int    `ini:"osd max object namespace len,omitempty"`
-	OsdObjectStore           string `ini:"osd objectstore"`
+	OsdObjectStore           string `ini:"osd objectstore,omitempty"`
 	CrushLocation            string `ini:"crush location,omitempty"`
 	RbdDefaultFeatures       int    `ini:"rbd_default_features,omitempty"`
 	FatalSignalHandlers      string `ini:"fatal signal handlers"`
@@ -294,9 +294,9 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 			MonHost:                strings.Join(monHosts, ","),
 			LogFile:                "/dev/stdout",
 			MonClusterLogFile:      "/dev/stdout",
-			PublicAddr:             context.NetworkInfo.PublicAddrIPv4,
+			PublicAddr:             context.NetworkInfo.PublicAddr,
 			PublicNetwork:          context.NetworkInfo.PublicNetwork,
-			ClusterAddr:            context.NetworkInfo.ClusterAddrIPv4,
+			ClusterAddr:            context.NetworkInfo.ClusterAddr,
 			ClusterNetwork:         context.NetworkInfo.ClusterNetwork,
 			MonKeyValueDb:          "rocksdb",
 			MonAllowPoolDelete:     true,

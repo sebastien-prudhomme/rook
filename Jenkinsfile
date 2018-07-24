@@ -64,14 +64,13 @@ pipeline {
             }
             steps{
                 sh 'cat _output/version | xargs tests/scripts/makeTestImages.sh  save amd64'
-                stash name: 'repo-amd64',includes: 'rook-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
+                stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script{
                     def data = [
-                        "gce_1.6.1": "v1.6.1",
-                        "gce_1.6.x": "v1.6.13",
                         "aws_1.7.x": "v1.7.11",
                         "aws_1.8.x": "v1.8.5",
-                        "gce_1.9.x": "v1.9.1"
+                        "gce_1.9.x": "v1.9.6",
+                        "aws_1.10.x": "v1.10.1"
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
@@ -167,6 +166,8 @@ def RunIntegrationTest(k, v) {
             }
             finally{
                 archive '_output/tests/*.log'
+                sh 'sudo rm -rf ${PWD}/rook-test'
+                sh 'sudo ls -l ${PWD}'
                 deleteDir()
             }
         }

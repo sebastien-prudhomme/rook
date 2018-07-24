@@ -39,10 +39,8 @@ ALL_PLATFORMS ?= darwin_amd64 windows_amd64 linux_amd64 linux_arm64
 
 ifeq ($(PLATFORM),linux_amd64)
 CROSS_TRIPLE = x86_64-linux-gnu
-DEBIAN_ARCH = amd64
 endif
 ifeq ($(PLATFORM),linux_arm64)
-DEBIAN_ARCH = arm64
 CROSS_TRIPLE = aarch64-linux-gnu
 endif
 ifeq ($(PLATFORM),darwin_amd64)
@@ -95,6 +93,9 @@ endif
 ifeq ($(origin BUILD_REGISTRY), undefined)
 BUILD_REGISTRY := build-$(shell echo $(HOSTNAME)-$(ROOT_DIR) | shasum -a 256 | cut -c1-8)
 endif
+
+# Select which images (backends) to make; default to all possible images
+IMAGES ?= ceph ceph-toolbox cockroachdb minio
 
 COMMA := ,
 SPACE :=

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -19,17 +20,16 @@ var (
 // Create StorageClass and poll if needed
 func createStorageClassAndPool(t func() *testing.T, kh *utils.K8sHelper, namespace string, storageClassName string, poolName string) {
 	//create storage class
-	if scp, _ := kh.IsStorageClassPresent(storageClassName); !scp {
+	if err := kh.IsStorageClassPresent(storageClassName); err != nil {
 		logger.Infof("Install pool and storage class for rook block")
 		_, err := installer.BlockResourceOperation(kh, installer.GetBlockPoolDef(poolName, namespace, "3"), "create")
 		require.NoError(t(), err)
-		_, err = installer.BlockResourceOperation(kh, installer.GetBlockStorageClassDef(poolName, storageClassName, namespace), "create")
+		_, err = installer.BlockResourceOperation(kh, installer.GetBlockStorageClassDef(poolName, storageClassName, namespace, false), "create")
 		require.NoError(t(), err)
 
 		//make sure storageclass is created
-		present, err := kh.IsStorageClassPresent(storageClassName)
+		err = kh.IsStorageClassPresent(storageClassName)
 		require.NoError(t(), err)
-		require.True(t(), present, "Make sure storageclass is present")
 	}
 }
 
@@ -142,8 +142,8 @@ type BaseLoadTestOperations struct {
 	namespace string
 }
 
-//NewBaseTestOperations creates new instance of BaseTestOperations struct
-func NewBaseLoadTestOperations(t func() *testing.T, namespace string) (BaseLoadTestOperations, *utils.K8sHelper, *installer.InstallHelper) {
+// StartBaseTestOperations creates new instance of BaseTestOperations struct
+func StartBaseLoadTestOperations(t func() *testing.T, namespace string) (BaseLoadTestOperations, *utils.K8sHelper, *installer.InstallHelper) {
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
@@ -158,10 +158,11 @@ func NewBaseLoadTestOperations(t func() *testing.T, namespace string) (BaseLoadT
 func (o BaseLoadTestOperations) SetUp() {
 
 	if !o.kh.IsRookInstalled(o.namespace) {
-		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore", "/temp/rookBackup", false, true, 3, true /* startWithAllNodes */)
+		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore",
+			false, true, cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+			true /* startWithAllNodes */)
 		require.NoError(o.T(), err)
 		require.True(o.T(), isRookInstalled)
-
 	}
 
 	// Enable chaos monkey if enable_chaos flag is present

@@ -17,6 +17,7 @@ package mon
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -63,11 +64,10 @@ func ParseMonEndpoints(input string) map[string]*CephMonitorConfig {
 }
 
 func ToCephMon(name, ip string, port int32) *CephMonitorConfig {
-	return &CephMonitorConfig{Name: name, Endpoint: fmt.Sprintf("%s:%d", ip, port)}
+	return &CephMonitorConfig{Name: name, Endpoint: joinHostPort(ip, port)}
 }
 
 func Run(context *clusterd.Context, config *Config) error {
-
 	configFile, monDataDir, err := generateConfigFiles(context, config)
 	if err != nil {
 		return fmt.Errorf("failed to generate mon config files. %+v", err)
@@ -148,12 +148,16 @@ func startMon(context *clusterd.Context, config *Config, confFilePath, monDataDi
 		fmt.Sprintf("--mon-data=%s", monDataDir),
 		fmt.Sprintf("--conf=%s", confFilePath),
 		fmt.Sprintf("--keyring=%s", keyringPath),
-		fmt.Sprintf("--public-addr=%s:%d", context.NetworkInfo.PublicAddrIPv4, config.Port),
-		fmt.Sprintf("--public-bind-addr=%s:%d", context.NetworkInfo.ClusterAddrIPv4, config.Port),
+		fmt.Sprintf("--public-addr=%s", joinHostPort(context.NetworkInfo.PublicAddr, config.Port)),
+		fmt.Sprintf("--public-bind-addr=%s", joinHostPort(context.NetworkInfo.ClusterAddr, config.Port)),
 	}
 	if err = context.Executor.ExecuteCommand(false, config.Name, "ceph-mon", args...); err != nil {
 		return fmt.Errorf("failed to start mon: %+v", err)
 	}
 
 	return nil
+}
+
+func joinHostPort(host string, port int32) string {
+	return net.JoinHostPort(host, fmt.Sprintf("%d", port))
 }

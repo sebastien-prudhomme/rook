@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -80,13 +81,13 @@ func (mrc *MultiClusterDeploySuite) createPools() {
 	poolName := "multi-cluster-pool1"
 	logger.Infof("Creating pool %s", poolName)
 	result, err := installer.BlockResourceOperation(mrc.k8sh, installer.GetBlockPoolDef(poolName, mrc.namespace1, "1"), "create")
-	require.Contains(mrc.T(), result, fmt.Sprintf("pool \"%s\" created", poolName))
+	assert.Contains(mrc.T(), result, fmt.Sprintf("\"%s\" created", poolName))
 	require.Nil(mrc.T(), err)
 
 	poolName = "multi-cluster-pool2"
 	logger.Infof("Creating pool %s", poolName)
 	result, err = installer.BlockResourceOperation(mrc.k8sh, installer.GetBlockPoolDef(poolName, mrc.namespace2, "1"), "create")
-	require.Contains(mrc.T(), result, fmt.Sprintf("pool \"%s\" created", poolName))
+	assert.Contains(mrc.T(), result, fmt.Sprintf("\"%s\" created", poolName))
 	require.Nil(mrc.T(), err)
 }
 
@@ -125,14 +126,15 @@ func (mrc *MultiClusterDeploySuite) TestObjectStoreOnMultiRookCluster() {
 
 //MCTestOperations struct for handling panic and test suite tear down
 type MCTestOperations struct {
-	installer   *installer.InstallHelper
-	installData *installer.InstallData
-	kh          *utils.K8sHelper
-	T           func() *testing.T
-	namespace1  string
-	namespace2  string
-	helper1     *clients.TestClient
-	helper2     *clients.TestClient
+	installer       *installer.InstallHelper
+	installData     *installer.InstallData
+	kh              *utils.K8sHelper
+	T               func() *testing.T
+	namespace1      string
+	namespace2      string
+	systemNamespace string
+	helper1         *clients.TestClient
+	helper2         *clients.TestClient
 }
 
 //NewMCTestOperations creates new instance of BaseTestOperations struct
@@ -143,7 +145,7 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 	i := installer.NewK8sRookhelper(kh.Clientset, t)
 	d := installer.NewK8sInstallData()
 
-	op := MCTestOperations{i, d, kh, t, namespace1, namespace2, nil, nil}
+	op := MCTestOperations{i, d, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1), nil, nil}
 	op.SetUp()
 	return op, kh
 }
@@ -154,11 +156,14 @@ func (o MCTestOperations) SetUp() {
 	err = o.installer.CreateK8sRookOperator(installer.SystemNamespace(o.namespace1))
 	require.NoError(o.T(), err)
 
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-operator", installer.SystemNamespace(o.namespace1), "Running"),
+	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-operator", o.systemNamespace, "Running"),
 		"Make sure rook-operator is in running state")
 
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-agent", installer.SystemNamespace(o.namespace1), "Running"),
-		"Make sure rook-agent is in running state")
+	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-agent", o.systemNamespace, "Running"),
+		"Make sure rook-ceph-agent is in running state")
+
+	require.True(o.T(), o.kh.IsPodInExpectedState("rook-discover", o.systemNamespace, "Running"),
+		"Make sure rook-discover is in running state")
 
 	time.Sleep(10 * time.Second)
 
@@ -183,8 +188,8 @@ func (o MCTestOperations) TearDown() {
 		}
 	}()
 	if o.T().Failed() {
-		o.installer.GatherAllRookLogs(o.namespace1, o.T().Name())
-		o.installer.GatherAllRookLogs(o.namespace2, o.T().Name())
+		o.installer.GatherAllRookLogs(o.namespace1, o.systemNamespace, o.T().Name())
+		o.installer.GatherAllRookLogs(o.namespace2, o.systemNamespace, o.T().Name())
 	}
 
 	o.installer.UninstallRookFromMultipleNS(false, installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
@@ -192,12 +197,14 @@ func (o MCTestOperations) TearDown() {
 
 func (o MCTestOperations) startCluster(namespace, store string, errCh chan error) {
 	logger.Infof("starting cluster %s", namespace)
-	if err := o.installer.CreateK8sRookCluster(namespace, store); err != nil {
+	if err := o.installer.CreateK8sRookCluster(namespace, o.systemNamespace, store); err != nil {
+		o.installer.GatherAllRookLogs(namespace, o.systemNamespace, o.T().Name())
 		errCh <- fmt.Errorf("failed to create cluster %s. %+v", namespace, err)
 		return
 	}
 
 	if err := o.installer.CreateK8sRookToolbox(namespace); err != nil {
+		o.installer.GatherAllRookLogs(namespace, o.systemNamespace, o.T().Name())
 		errCh <- fmt.Errorf("failed to create toolbox for %s. %+v", namespace, err)
 		return
 	}

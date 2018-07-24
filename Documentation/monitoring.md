@@ -10,8 +10,6 @@ If you do not have Prometheus running, follow the steps below to enable monitori
 contains a Prometheus instance, it will automatically discover Rooks scrape endpoint using the standard
 `prometheus.io/scrape` and `prometheus.io/port` annotations.
 
-Note that these steps work only for Kubernetes 1.7.x or higher. For Kubernetes 1.6.x or older, refer to the Rook 0.5.0 [documentation](https://github.com/rook/rook/blob/release-0.5/Documentation/monitoring.md) and use these [manifest files](https://github.com/rook/rook/tree/release-0.5/cluster/examples/kubernetes/monitoring).
-
 
 ## Prometheus Operator
 
@@ -43,22 +41,22 @@ kubectl create -f prometheus-service.yaml
 
 Ensure that the Prometheus server pod gets created and advances to the `Running` state before moving on:
 ```bash
-kubectl -n rook get pod prometheus-rook-prometheus-0
+kubectl -n rook-ceph get pod prometheus-rook-prometheus-0
 ```
 
 ## Prometheus Web Console
 
 Once the Prometheus server is running, you can open a web browser and go to the URL that is output from this command:
 ```bash
-echo "http://$(kubectl -n rook -o jsonpath={.status.hostIP} get pod prometheus-rook-prometheus-0):30900"
+echo "http://$(kubectl -n rook-ceph -o jsonpath={.status.hostIP} get pod prometheus-rook-prometheus-0):30900"
 ```
 
-You should now see the Prometheus monitoring website.  
+You should now see the Prometheus monitoring website.
 
 ![Prometheus Monitoring Website](media/prometheus-monitor.png)
 
 
-Click on `Graph` in the top navigation bar.  
+Click on `Graph` in the top navigation bar.
 
 ![Prometheus Add graph](media/prometheus-graph.png)
 
@@ -68,7 +66,7 @@ In the dropdown that says `insert metric at cursor`, select any metric you would
 ![Prometheus Select Metric](media/prometheus-metric-cursor.png)
 
 
-Click on the `Execute` button.  
+Click on the `Execute` button.
 
 ![Prometheus Execute Metric](media/prometheus-execute-metric-cursor.png)
 
@@ -79,11 +77,17 @@ Below the `Execute` button, ensure the `Graph` tab is selected and you should no
 
 ## Prometheus Consoles
 You can find Prometheus Consoles here: https://github.com/ceph/cephmetrics/tree/master/dashboards/current.
-A guide to how you can write your own Prometheus consoles can be found on the official Prometheus site here: https://prometheus.io/docs/visualization/consoles/
+A guide to how you can write your own Prometheus consoles can be found on the official Prometheus site here: https://prometheus.io/docs/visualization/consoles/.
 
 ## Grafana Dashboards
-Currently there are no official Rook dashboards, which will change soon, but you can find some here: https://github.com/SUSE/DeepSea/tree/master/srv/salt/ceph/monitoring/grafana/files
-To use the dashboards, just download the JSON file(s) and in Grafan import them by uploading the JSON file.
+The dashboards have been created by [@galexrt](https://github.com/galexrt). For feedback on the dashboards please reach out to him on the [Rook.io Slack](https://rook-slackin.herokuapp.com/).
+
+> **NOTE** The dashboards are only compatible with Grafana 5.0.3 or higher.
+
+The following Grafana dashboards are available:
+* [Ceph - Cluster](https://grafana.com/dashboards/2842)
+* [Ceph - OSD](https://grafana.com/dashboards/5336)
+* [Ceph - Pools](https://grafana.com/dashboards/5342)
 
 ## Teardown
 
@@ -92,7 +96,7 @@ To clean up all the artifacts created by the monitoring walkthrough, copy/paste 
 kubectl delete -f service-monitor.yaml
 kubectl delete -f prometheus.yaml
 kubectl delete -f prometheus-service.yaml
-kubectl -n rook delete statefulset prometheus-rook-prometheus
+kubectl -n rook-ceph delete statefulset prometheus-rook-prometheus
 kubectl delete -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.8/bundle.yaml
 ```
 Then the rest of the instructions in the [Prometheus Operator docs](https://github.com/coreos/prometheus-operator#removal) can be followed to finish cleaning up.

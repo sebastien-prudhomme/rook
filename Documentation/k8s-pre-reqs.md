@@ -9,10 +9,7 @@ Rook can be installed on any existing Kubernetes clusters as long as it meets th
 
 ## Minimum Version
 
-Kubernetes v1.6 or higher is targeted by Rook (while Rook is in alpha it will track the latest release to use the latest features).
-
-Support is available for Kubernetes v1.5.2, although your mileage may vary.
-You will need to use the yaml files from the [1.5 folder](/cluster/examples/kubernetes/1.5).
+Kubernetes v1.7 or higher is supported by Rook.
 
 ## Privileges and RBAC
 
@@ -48,7 +45,7 @@ After these steps, your minikube cluster is ready to install Rook on.
 ### Kubeadm
 
 You can easily spin up Rook on top of a `kubeadm` cluster.
-You can find the instructions on how to install kubeadm in the [Install `kubeadm`] (https://kubernetes.io/docs/setup/independent/install-kubeadm/) page.
+You can find the instructions on how to install kubeadm in the [Install `kubeadm`](https://kubernetes.io/docs/setup/independent/install-kubeadm/) page.
 
 By using `kubeadm`, you can use Rook in just a few minutes!
 
@@ -70,12 +67,12 @@ Then wait for the cluster to come up and verify that kubernetes is done initiali
 kubectl cluster-info
 ```
 
-Once you see a url response, your cluster is [ready for use by Rook](quickstart.md#deploy-rook).
+Once you see a url response, your cluster is [ready for use by Rook](ceph-quickstart.md#deploy-rook).
 
 
 ## Using Rook in Kubernetes
 
-Now that you have a Kubernetes cluster running, you can start using Rook with [these steps](quickstart.md#deploy-rook).
+Now that you have a Kubernetes cluster running, you can start using Rook with [these steps](ceph-quickstart.md#deploy-rook).
 
 ## Using Rook on Tectonic Bare Metal
 

@@ -25,8 +25,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
-	"github.com/rook/rook/pkg/operator/cluster/ceph/osd/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -98,15 +97,15 @@ func createMockMetadata(t *testing.T, configDir, name, content string) {
 	assert.Nil(t, err)
 }
 
-func assertBackedUpFile(t *testing.T, config *osdConfig, kv *k8sutil.ConfigMapKVStore, name, expectedContent string) {
-	storeName := fmt.Sprintf(osdFSStoreNameFmt, config.id)
+func assertBackedUpFile(t *testing.T, c *osdConfig, kv *k8sutil.ConfigMapKVStore, name, expectedContent string) {
+	storeName := fmt.Sprintf(config.OSDFSStoreNameFmt, c.id)
 	val, err := kv.GetValue(storeName, name)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedContent, val)
 }
 
-func assertNotBackedUpFile(t *testing.T, config *osdConfig, kv *k8sutil.ConfigMapKVStore, name string) {
-	storeName := fmt.Sprintf(osdFSStoreNameFmt, config.id)
+func assertNotBackedUpFile(t *testing.T, c *osdConfig, kv *k8sutil.ConfigMapKVStore, name string) {
+	storeName := fmt.Sprintf(config.OSDFSStoreNameFmt, c.id)
 	_, err := kv.GetValue(storeName, name)
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
@@ -120,7 +119,7 @@ func TestRepairOSDFileSystem(t *testing.T) {
 	defer os.RemoveAll(configDir)
 
 	osdID := 123
-	storeConfig := rookalpha.StoreConfig{StoreType: config.Bluestore}
+	storeConfig := config.StoreConfig{StoreType: config.Bluestore}
 	kv := mockKVStore()
 	schemeEntry, _, _ := mockPartitionSchemeEntry(t, osdID, "sdf", &storeConfig, kv, "node3930")
 	cfg := &osdConfig{
@@ -131,7 +130,7 @@ func TestRepairOSDFileSystem(t *testing.T) {
 	}
 
 	// mock a backed up OSD filesystem
-	storeName := fmt.Sprintf(osdFSStoreNameFmt, cfg.id)
+	storeName := fmt.Sprintf(config.OSDFSStoreNameFmt, cfg.id)
 	kv.SetValue(storeName, "foo", "bar")
 	kv.SetValue(storeName, "bif", "bonk")
 

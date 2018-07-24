@@ -36,9 +36,9 @@ const (
 	// ClusterAttr cluster label
 	ClusterAttr = "rook_cluster"
 	// PublicIPEnvVar public IP env var
-	PublicIPEnvVar = "ROOK_PUBLIC_IPV4"
+	PublicIPEnvVar = "ROOK_PUBLIC_IP"
 	// PrivateIPEnvVar pod IP env var
-	PrivateIPEnvVar = "ROOK_PRIVATE_IPV4"
+	PrivateIPEnvVar = "ROOK_PRIVATE_IP"
 
 	// DefaultRepoPrefix repo prefix
 	DefaultRepoPrefix = "rook"
@@ -93,27 +93,30 @@ func ConfigDirEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOK_CONFIG_DIR", Value: DataDir}
 }
 
-func GetContainerImage(clientset kubernetes.Interface, name string) (string, error) {
-
-	podName := os.Getenv(PodNameEnvVar)
-	if podName == "" {
-		return "", fmt.Errorf("cannot detect the pod name. Please provide it using the downward API in the manifest file")
-	}
-	podNamespace := os.Getenv(PodNamespaceEnvVar)
-	if podName == "" {
-		return "", fmt.Errorf("cannot detect the pod namespace. Please provide it using the downward API in the manifest file")
-	}
-
-	pod, err := clientset.CoreV1().Pods(podNamespace).Get(podName, metav1.GetOptions{})
-	if err != nil {
-		return "", err
-	}
+func GetContainerImage(pod *v1.Pod, name string) (string, error) {
 
 	image, err := GetMatchingContainer(pod.Spec.Containers, name)
 	if err != nil {
 		return "", err
 	}
 	return image.Image, nil
+}
+
+func GetRunningPod(clientset kubernetes.Interface) (*v1.Pod, error) {
+	podName := os.Getenv(PodNameEnvVar)
+	if podName == "" {
+		return nil, fmt.Errorf("cannot detect the pod name. Please provide it using the downward API in the manifest file")
+	}
+	podNamespace := os.Getenv(PodNamespaceEnvVar)
+	if podName == "" {
+		return nil, fmt.Errorf("cannot detect the pod namespace. Please provide it using the downward API in the manifest file")
+	}
+
+	pod, err := clientset.CoreV1().Pods(podNamespace).Get(podName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return pod, nil
 }
 
 func GetMatchingContainer(containers []v1.Container, name string) (v1.Container, error) {
@@ -145,6 +148,24 @@ func MakeRookImage(version string) string {
 	}
 
 	return version
+}
+
+// GetPodPhaseMap takes a list of pods and returns a map of pod phases to the names of pods that are in that phase
+func GetPodPhaseMap(pods *v1.PodList) map[v1.PodPhase][]string {
+	podPhaseMap := map[v1.PodPhase][]string{} // status to list of pod names with that phase
+	for _, pod := range pods.Items {
+		podPhase := pod.Status.Phase
+		podList, ok := podPhaseMap[podPhase]
+		if !ok {
+			// haven't seen this status yet, create a slice to keep track of pod names with this status
+			podPhaseMap[podPhase] = []string{pod.Name}
+		} else {
+			// add this pod name to the list of pods already seen with this status
+			podPhaseMap[podPhase] = append(podList, pod.Name)
+		}
+	}
+
+	return podPhaseMap
 }
 
 // DeleteDeployment makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
