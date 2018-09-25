@@ -87,6 +87,7 @@ func NewClusterController(context *clusterd.Context, containerImage string) *Clu
 
 type cluster struct {
 	context   *clusterd.Context
+	name      string
 	namespace string
 	spec      cockroachdbv1alpha1.ClusterSpec
 	ownerRef  metav1.OwnerReference
@@ -95,18 +96,19 @@ type cluster struct {
 func newCluster(c *cockroachdbv1alpha1.Cluster, context *clusterd.Context) *cluster {
 	return &cluster{
 		context:   context,
+		name:      c.Name,
 		namespace: c.Namespace,
 		spec:      c.Spec,
-		ownerRef:  clusterOwnerRef(c.Namespace, string(c.UID)),
+		ownerRef:  clusterOwnerRef(c.Name, string(c.UID)),
 	}
 }
 
-func clusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
+func clusterOwnerRef(clusterName, clusterID string) metav1.OwnerReference {
 	blockOwner := true
 	return metav1.OwnerReference{
 		APIVersion:         ClusterResource.Version,
 		Kind:               ClusterResource.Kind,
-		Name:               namespace,
+		Name:               clusterName,
 		UID:                types.UID(clusterID),
 		BlockOwnerDeletion: &blockOwner,
 	}
@@ -173,11 +175,11 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		return true, nil
 	})
 	if err != nil {
-		logger.Errorf("failed to initialize cluster in namespace %s: %+v", cluster.namespace, err)
+		logger.Errorf("failed to initialize cluster %s in namespace %s: %+v", cluster.name, cluster.namespace, err)
 		return
 	}
 
-	logger.Infof("succeeded creating and initializing cluster in namespace %s", cluster.namespace)
+	logger.Infof("succeeded creating and initializing cluster %s in namespace %s", cluster.name, cluster.namespace)
 }
 
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
@@ -204,10 +206,10 @@ func (c *ClusterController) createClientService(cluster *cluster) error {
 			Name:            "cockroachdb-public",
 			Namespace:       cluster.namespace,
 			OwnerReferences: []metav1.OwnerReference{cluster.ownerRef},
-			Labels:          createAppLabels(),
+			Labels:          createAppLabels(cluster.name),
 		},
 		Spec: v1.ServiceSpec{
-			Selector: createAppLabels(),
+			Selector: createAppLabels(cluster.name),
 			Type:     v1.ServiceTypeClusterIP,
 			Ports:    createServicePorts(httpPort, grpcPort),
 		},
@@ -240,7 +242,7 @@ func (c *ClusterController) createReplicaService(cluster *cluster) error {
 			Name:            appName,
 			Namespace:       cluster.namespace,
 			OwnerReferences: []metav1.OwnerReference{cluster.ownerRef},
-			Labels:          createAppLabels(),
+			Labels:          createAppLabels(cluster.name),
 			Annotations: map[string]string{
 				// Use this annotation in addition to the actual publishNotReadyAddresses
 				// field below because the annotation will stop being respected soon but the
@@ -253,7 +255,7 @@ func (c *ClusterController) createReplicaService(cluster *cluster) error {
 			},
 		},
 		Spec: v1.ServiceSpec{
-			Selector: createAppLabels(),
+			Selector: createAppLabels(cluster.name),
 			// We want all pods in the StatefulSet to have their addresses published for
 			// the sake of the other CockroachDB pods even before they're ready, since they
 			// have to be able to talk to each other in order to become ready.
@@ -283,11 +285,11 @@ func (c *ClusterController) createPodDisruptionBudget(cluster *cluster) error {
 			Name:            "cockroachdb-budget",
 			Namespace:       cluster.namespace,
 			OwnerReferences: []metav1.OwnerReference{cluster.ownerRef},
-			Labels:          createAppLabels(),
+			Labels:          createAppLabels(cluster.name),
 		},
 		Spec: policyv1beta1.PodDisruptionBudgetSpec{
 			Selector: &metav1.LabelSelector{
-				MatchLabels: createAppLabels(),
+				MatchLabels: createAppLabels(cluster.name),
 			},
 			MaxUnavailable: &maxUnavailable,
 		},
@@ -325,7 +327,7 @@ func (c *ClusterController) createStatefulSet(cluster *cluster) error {
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Namespace: cluster.namespace,
-					Labels:    createAppLabels(),
+					Labels:    createAppLabels(cluster.name),
 				},
 				Spec: createPodSpec(cluster, c.containerImage, httpPort, grpcPort),
 			},
@@ -528,9 +530,10 @@ func validatePercentValue(value int, name string) error {
 	return nil
 }
 
-func createAppLabels() map[string]string {
+func createAppLabels(clusterName string) map[string]string {
 	return map[string]string{
-		k8sutil.AppAttr: appName,
+		k8sutil.AppAttr:       appName,
+		"cockroachdb_cluster": clusterName,
 	}
 }
 
