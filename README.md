@@ -4,6 +4,7 @@
 [![GitHub release](https://img.shields.io/github/release/rook/rook/all.svg?style=flat-square)](https://github.com/rook/rook/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/rook/rook.svg)](https://img.shields.io/docker/pulls/rook/rook.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rook/rook)](https://goreportcard.com/report/github.com/rook/rook)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1599/badge)](https://bestpractices.coreinfrastructure.org/projects/1599)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Frook%2Frook.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Frook%2Frook?ref=badge_shield)
 [![Slack](https://rook-slackin.herokuapp.com/badge.svg)](https://rook-slackin.herokuapp.com/badge.svg)
 [![Twitter Follow](https://img.shields.io/twitter/follow/rook_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=rook_io&user_id=788180534543339520)
@@ -70,6 +71,7 @@ Rook Framework|The framework for common storage specs and logic used to support 
 Ceph|[Ceph](https://ceph.com/) is a distributed storage system that provides file, block and object storage and is deployed in large scale production clusters.|ceph.rook.io/v1beta1|Beta
 CockroachDB|[CockroachDB](https://www.cockroachlabs.com/product/cockroachdb/) is a cloud-native SQL database for building global, scalable cloud services that survive disasters.|cockroachdb.rook.io/v1alpha1|Alpha
 Minio|[Minio](https://www.minio.io/) is a high performance distributed object storage server, designed for large-scale private cloud infrastructure.|minio.rook.io/v1alpha1|Alpha
+NFS|[Network File System (NFS)](https://github.com/nfs-ganesha/nfs-ganesha/wiki) allows remote hosts to mount file systems over a network and interact with those file systems as though they are mounted locally.|nfs.rook.io/v1alpha1|Alpha
 
 ### Official Releases
 

@@ -14,10 +14,6 @@ spec:
     - failureDomain: osd
       replicated:
         size: 1
-      # If you have at least three osds, erasure coding can be specified
-      # erasureCoded:
-      #   dataChunks: 2
-      #   codingChunks: 1
   # The metadata service (mds) configuration
   metadataServer:
     # The number of active MDS instances

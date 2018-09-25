@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package object
 
 import (
@@ -128,6 +129,8 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("--rgw-name=%s", "default"), cont.Args[3])
 	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", 123), cont.Args[4])
 	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 0), cont.Args[5])
+
+	assert.Equal(t, (7 + len(k8sutil.ClusterDaemonEnvVars())), len(cont.Env))
 
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())

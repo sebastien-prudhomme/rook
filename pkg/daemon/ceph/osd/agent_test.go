@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package osd
 
 import (
@@ -27,7 +28,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/daemon/ceph/test"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -350,10 +351,10 @@ func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeCon
 			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
 		},
 	}
-	cluster := &mon.ClusterInfo{Name: "myclust"}
+	cluster := &cephconfig.ClusterInfo{Name: "myclust"}
 	context := &clusterd.Context{ConfigDir: configDir, Executor: executor, Clientset: testop.New(1)}
 	agent := NewAgent(context, devices, false, "", "", forceFormat, location, *storeConfig,
-		cluster, nodeName, mockKVStore(), false /* prepareOnly */)
+		cluster, nodeName, mockKVStore())
 
 	return agent, executor, context
 }
@@ -382,7 +383,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 		{Name: "sdb", Size: 107374182400}, // 100 GB
 		{Name: "sdc", Size: 44158681088},  // 1 MB (starting offset) + 2 * (576 MB + 20 GB) = 41.125 GB
 	}
-	clusterInfo := &mon.ClusterInfo{Name: "myclust"}
+	clusterInfo := &cephconfig.ClusterInfo{Name: "myclust"}
 	a.cluster = clusterInfo
 
 	// mock monitor command to return an osd ID when the client registers/creates an osd
@@ -555,7 +556,7 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 	// mock the currently discovered hardware, note the device names have changed (e.g., across reboots) but their UUIDs are always static
 	a := &OsdAgent{devices: "sda-changed", kv: mockKVStore()}
 
-	// setup an existing partition schme with metadata on nvme01 and data on sda
+	// setup an existing partition scheme with metadata on nvme01 and data on sda
 	_, metadataUUID, sdaUUID := mockDistributedPartitionScheme(t, 1, "nvme01", "sda", a.kv, a.nodeName)
 
 	context.Devices = []*sys.LocalDisk{

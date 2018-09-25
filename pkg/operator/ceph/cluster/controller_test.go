@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package cluster
 
 import (
@@ -180,7 +181,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	// remove the finalizer from the cluster object
 	controller.removeFinalizer(cluster)
 
-	// verify the finalier was removed
+	// verify the finalizer was removed
 	cluster, err = context.RookClientset.CephV1beta1().Clusters(cluster.Namespace).Get(cluster.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, cluster)
@@ -205,7 +206,7 @@ func TestRemoveFinalizer(t *testing.T) {
 	// remove the finalizer from the cluster object
 	controller.removeFinalizer(legacyRookCluster)
 
-	// verify the finalier was removed
+	// verify the finalizer was removed
 	legacyRookCluster, err = context.RookClientset.RookV1alpha1().Clusters(legacyRookCluster.Namespace).Get(legacyRookCluster.Name, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotNil(t, legacyRookCluster)

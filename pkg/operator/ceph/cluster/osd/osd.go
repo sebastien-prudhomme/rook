@@ -46,8 +46,8 @@ const (
 	appName                      = "rook-ceph-osd"
 	prepareAppName               = "rook-ceph-osd-prepare"
 	prepareAppNameFmt            = "rook-ceph-osd-prepare-%s"
-	osdAppNameFmt                = "rook-ceph-osd-id-%d"
-	appNameFmt                   = "rook-ceph-osd-%s"
+	legacyAppNameFmt             = "rook-ceph-osd-id-%d"
+	osdAppNameFmt                = "rook-ceph-osd-%d"
 	osdLabelKey                  = "ceph-osd-id"
 	clusterAvailableSpaceReserve = 0.05
 	defaultServiceAccountName    = "rook-ceph-cluster"
@@ -159,7 +159,14 @@ func (c *Cluster) Start() error {
 		}
 		logger.Debugf("storage nodes: %+v", c.Storage.Nodes)
 	}
-
+	validNodes := k8sutil.GetValidNodes(c.Storage.Nodes, c.context.Clientset, c.placement)
+	// no valid node is ready to run an osd
+	if len(validNodes) == 0 {
+		logger.Warningf("no valid node available to run an osd in namespace %s", c.Namespace)
+		return nil
+	}
+	logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.Storage.Nodes))
+	c.Storage.Nodes = validNodes
 	// orchestrate individual nodes, starting with any that are still ongoing (in the case that we
 	// are resuming a previous orchestration attempt)
 	config := newProvisionConfig()
@@ -306,7 +313,7 @@ func (c *Cluster) deleteBatchJob(name string) error {
 	return nil
 }
 
-func (c *Cluster) startOSDDaemon(nodeName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus) bool {
+func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus) {
 
 	osds := status.OSDs
 	logger.Infof("starting %d osd daemons on node %s", len(osds), nodeName)
@@ -315,14 +322,13 @@ func (c *Cluster) startOSDDaemon(nodeName string, config *provisionConfig, confi
 	n := c.resolveNode(nodeName)
 	if n == nil {
 		config.addError("node %s did not resolve to start osds", nodeName)
-		return false
+		return
 	}
 
 	storeConfig := osdconfig.ToStoreConfig(n.Config)
 	metadataDevice := osdconfig.MetadataDevice(n.Config)
 
 	// start osds
-	succeeded := 0
 	for _, osd := range osds {
 		logger.Debugf("start osd %v", osd)
 		dp, err := c.makeDeployment(n.Name, config.devicesToUse[n.Name], n.Selection, n.Resources, storeConfig, metadataDevice, n.Location, osd)
@@ -335,7 +341,12 @@ func (c *Cluster) startOSDDaemon(nodeName string, config *provisionConfig, confi
 			}
 			continue
 		}
-		dp, err = c.context.Clientset.Extensions().Deployments(c.Namespace).Create(dp)
+
+		if err = c.deleteDeploymentWithLegacyName(osd.ID); err != nil {
+			logger.Warningf("failed to delete legacy osd deployment. %+v", err)
+		}
+
+		_, err = c.context.Clientset.Extensions().Deployments(c.Namespace).Create(dp)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				// we failed to create job, update the orchestration status for this node
@@ -346,13 +357,19 @@ func (c *Cluster) startOSDDaemon(nodeName string, config *provisionConfig, confi
 				}
 				continue
 			}
-			logger.Infof("deployment for osd %d already exists", osd.ID)
+			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
+			if err = k8sutil.UpdateDeploymentAndWait(c.context, dp, c.Namespace); err != nil {
+				config.addError(fmt.Sprintf("failed to update osd deployment %d. %+v", osd.ID, err))
+			}
 		}
-		logger.Infof("started deployment for osd %d (dir=%t, type=%s)", osd.ID, osd.IsDirectory, storeConfig.StoreType)
-		succeeded++
-	}
 
-	return succeeded == len(osds)
+		logger.Infof("started deployment for osd %d (dir=%t, type=%s)", osd.ID, osd.IsDirectory, storeConfig.StoreType)
+	}
+}
+
+func (c *Cluster) deleteDeploymentWithLegacyName(osdID int) error {
+	legacyName := fmt.Sprintf(legacyAppNameFmt, osdID)
+	return k8sutil.DeleteDeployment(c.context.Clientset, c.Namespace, legacyName)
 }
 
 func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
@@ -559,5 +576,17 @@ func (c *Cluster) resolveNode(nodeName string) *rookalpha.Node {
 		return nil
 	}
 	rookNode.Resources = k8sutil.MergeResourceRequirements(rookNode.Resources, c.resources)
+
+	// ensure no invalid dirs are specified
+	var validDirs []rookalpha.Directory
+	for _, dir := range rookNode.Directories {
+		if dir.Path == k8sutil.DataDir || dir.Path == c.dataDirHostPath {
+			logger.Warningf("skipping directory %s that would conflict with the dataDirHostPath", dir.Path)
+			continue
+		}
+		validDirs = append(validDirs, dir)
+	}
+	rookNode.Directories = validDirs
+
 	return rookNode
 }

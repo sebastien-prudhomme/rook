@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package osd
 
 import (
@@ -22,7 +23,7 @@ import (
 	"path/filepath"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/util"
 )
@@ -34,7 +35,7 @@ const (
 	bluestoreWalSymlinkName   = "block.wal"
 )
 
-// creates/initalizes the OSD filesystem and journal via a child process
+// creates/initializes the OSD filesystem and journal via a child process
 func createOSDFileSystem(context *clusterd.Context, clusterName string, config *osdConfig) error {
 	logger.Infof("Initializing OSD %d file system at %s...", config.id, config.rootPath)
 
@@ -58,7 +59,7 @@ func createOSDFileSystem(context *clusterd.Context, clusterName string, config *
 		"--mkfs",
 		fmt.Sprintf("--id=%d", config.id),
 		fmt.Sprintf("--cluster=%s", clusterName),
-		fmt.Sprintf("--conf=%s", mon.GetConfFilePath(config.rootPath, clusterName)),
+		fmt.Sprintf("--conf=%s", cephconfig.GetConfFilePath(config.rootPath, clusterName)),
 		fmt.Sprintf("--osd-data=%s", config.rootPath),
 		fmt.Sprintf("--osd-uuid=%s", config.uuid.String()),
 		fmt.Sprintf("--monmap=%s", monMapTmpPath),
@@ -146,7 +147,7 @@ func backupOSDFileSystem(config *osdConfig, clusterName string) error {
 
 	filter := util.CreateSet([]string{
 		// filter out the rook.config file since it's always regenerated
-		filepath.Base(mon.GetConfFilePath(config.rootPath, clusterName)),
+		filepath.Base(cephconfig.GetConfFilePath(config.rootPath, clusterName)),
 		// filter out the keyring since we recreate it with "auth get-or-create" and we don't want
 		// to store a secret in a non secret resource
 		keyringFileName,

@@ -37,7 +37,7 @@ The maintainers have the responsibility of ensuring this criteria is met.
 * Upgrade
   * The upgrade guide is fully walked through with all optional components from the previous **official release** to the release candidate in master, using a multi-node cluster with devices, directories, and provider specific settings.
 * Sign-off
-  * All maintainers have given their approval for the release. If unavailable, advance approval is okay.  Approval can be verbal or written.
+  * Maintainers have signed-off (approved) of the release in accordance with the [project governance voting policy](/GOVERNANCE.md#conflict-resolution-and-voting). If a maintainer is unavailable, advance approval is okay.  Approval can be verbal or written.
 
 ## Tagging a new release
 
@@ -91,7 +91,7 @@ Binaries go to an S3 bucket `rook-release` (and https://release.rook.io) and hav
 
 ## Containers
 
-Containers go to docker hub and quay.io where we have the following repos:
+Containers go to docker hub where we have the following repos:
 
 ```
 rook/ceph

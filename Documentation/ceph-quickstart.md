@@ -11,7 +11,7 @@ from other pods running in your cluster.
 
 ## Minimum Version
 
-Kubernetes **v1.7** or higher is supported by Rook.
+Kubernetes **v1.8** or higher is supported by Rook.
 
 ## Prerequisites
 
@@ -44,14 +44,6 @@ kubectl -n rook-ceph-system get pod
 
 You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
 
----
-### **Restart Kubelet**
-**(K8S 1.7.x only)**
-
-For versions of Kubernetes prior to 1.8, the Kubelet process on all nodes will require a restart after the Rook operator and Rook agents have been deployed. As part of their initial setup, the Rook agents deploy and configure a Flexvolume plugin in order to integrate with Kubernetes' volume controller framework. In Kubernetes v1.8+, the [dynamic Flexvolume plugin discovery](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md#dynamic-plugin-discovery) will find and initialize our plugin, but in older versions of Kubernetes a manual restart of the Kubelet will be required.
-
----
-
 ## Create a Rook Cluster
 
 Now that the Rook operator, agent, and discover pods are running, we can create the Rook cluster. For the cluster to survive reboots,
@@ -61,11 +53,64 @@ make sure you set the `dataDirHostPath` property. For more settings, see the doc
 Save the cluster spec as `cluster.yaml`:
 
 ```yaml
+#################################################################################
+# This example first defines some necessary namespace and RBAC security objects.
+# The actual Ceph Cluster CRD example can be found at the bottom of this example.
+#################################################################################
 apiVersion: v1
 kind: Namespace
 metadata:
   name: rook-ceph
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+---
+# Allow the operator to create resources in this cluster's namespace
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster-mgmt
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-cluster-mgmt
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: rook-ceph-system
+---
+# Allow the pods in this namespace to work with configmaps
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+---
+#################################################################################
+# The Ceph Cluster CRD example
+#################################################################################
 apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
@@ -94,15 +139,14 @@ The number of osd pods will depend on the number of nodes in the cluster and the
 
 ```bash
 $ kubectl -n rook-ceph get pod
-NAME                                      READY     STATUS      RESTARTS   AGE
-rook-ceph-mgr-a-75cc4ccbf4-t8qtx          1/1       Running     0          24m
-rook-ceph-mon0-72vx7                      1/1       Running     0          25m
-rook-ceph-mon1-rrpm6                      1/1       Running     0          24m
-rook-ceph-mon2-zff9r                      1/1       Running     0          24m
-rook-ceph-osd-id-0-5fd8cb9747-dvlsb       1/1       Running     0          23m
-rook-ceph-osd-id-1-84dc695b48-r5mhf       1/1       Running     0          23m
-rook-ceph-osd-id-2-558878cd84-cnp67       1/1       Running     0          23m
-rook-ceph-osd-prepare-minikube-wq4f5      0/1       Completed   0          24m
+NAME                                   READY     STATUS      RESTARTS   AGE
+rook-ceph-mgr-a-9c44495df-ln9sq        1/1       Running     0          1m
+rook-ceph-mon-a-69fb9c78cd-58szd       1/1       Running     0          2m
+rook-ceph-mon-b-cf4ddc49c-c756f        1/1       Running     0          2m
+rook-ceph-mon-c-5b467747f4-8cbmv       1/1       Running     0          2m
+rook-ceph-osd-0-f6549956d-6z294        1/1       Running     0          1m
+rook-ceph-osd-1-5b96b56684-r7zsp       1/1       Running     0          1m
+rook-ceph-osd-prepare-mynode-ftt57     0/1       Completed   0          1m
 ```
 
 # Storage

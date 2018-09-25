@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package osd
 
 import (
@@ -27,7 +28,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -44,7 +45,7 @@ const (
 )
 
 type OsdAgent struct {
-	cluster           *mon.ClusterInfo
+	cluster           *cephconfig.ClusterInfo
 	nodeName          string
 	forceFormat       bool
 	location          string
@@ -58,11 +59,10 @@ type OsdAgent struct {
 	kv                *k8sutil.ConfigMapKVStore
 	configCounter     int32
 	osdsCompleted     chan struct{}
-	prepareOnly       bool
 }
 
 func NewAgent(context *clusterd.Context, devices string, usingDeviceFilter bool, metadataDevice, directories string, forceFormat bool,
-	location string, storeConfig config.StoreConfig, cluster *mon.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore, prepareOnly bool) *OsdAgent {
+	location string, storeConfig config.StoreConfig, cluster *cephconfig.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore) *OsdAgent {
 
 	return &OsdAgent{
 		devices:           devices,
@@ -77,7 +77,6 @@ func NewAgent(context *clusterd.Context, devices string, usingDeviceFilter bool,
 		kv:                kv,
 		procMan:           proc.New(context.Executor),
 		osdProc:           make(map[int]*proc.MonitoredProc),
-		prepareOnly:       prepareOnly,
 	}
 }
 
@@ -215,7 +214,7 @@ func (a *OsdAgent) removeDevices(context *clusterd.Context, removedDevicesScheme
 	return nil
 }
 
-// computes a partitioning scheme for all the given desired devices.  This could be devics already in use,
+// computes a partitioning scheme for all the given desired devices.  This could be devices already in use,
 // devices dedicated to metadata, and devices with all bluestore partitions collocated.
 func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *DeviceOsdMapping) (*config.PerfScheme, error) {
 
@@ -425,13 +424,13 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 		}
 
 		// osd_data_dir/ready does not exist yet, create/initialize the OSD
-		err := initializeOSD(cfg, context, a.cluster, a.location, a.prepareOnly)
+		err := initializeOSD(cfg, context, a.cluster, a.location)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize OSD at %s: %+v", cfg.rootPath, err)
 		}
 	} else {
 		// update the osd config file
-		err := writeConfigFile(cfg, context, a.cluster, a.location, a.prepareOnly)
+		err := writeConfigFile(cfg, context, a.cluster, a.location)
 		if err != nil {
 			logger.Warningf("failed to update config file. %+v", err)
 		}

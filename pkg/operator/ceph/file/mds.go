@@ -24,7 +24,7 @@ import (
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephmds "github.com/rook/rook/pkg/daemon/ceph/mds"
+	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
@@ -50,7 +50,7 @@ func CreateFilesystem(context *clusterd.Context, fs cephv1beta1.Filesystem, vers
 	for _, p := range fs.Spec.DataPools {
 		dataPools = append(dataPools, p.ToModel(""))
 	}
-	f := cephmds.NewFS(fs.Name, fs.Spec.MetadataPool.ToModel(""), dataPools, fs.Spec.MetadataServer.ActiveCount)
+	f := mdsdaemon.NewFS(fs.Name, fs.Spec.MetadataPool.ToModel(""), dataPools, fs.Spec.MetadataServer.ActiveCount)
 	if err := f.CreateFilesystem(context, fs.Namespace); err != nil {
 		return fmt.Errorf("failed to create file system %s: %+v", fs.Name, err)
 	}
@@ -90,7 +90,7 @@ func DeleteFilesystem(context *clusterd.Context, fs cephv1beta1.Filesystem) erro
 	}
 
 	// Delete the ceph file system and pools
-	if err := cephmds.DeleteFilesystem(context, fs.Namespace, fs.Name); err != nil {
+	if err := mdsdaemon.DeleteFilesystem(context, fs.Namespace, fs.Name); err != nil {
 		return fmt.Errorf("failed to delete file system %s: %+v", fs.Name, err)
 	}
 
@@ -143,6 +143,19 @@ func makeDeployment(clientset kubernetes.Interface, fs cephv1beta1.Filesystem, f
 
 func mdsContainer(fs cephv1beta1.Filesystem, filesystemID, version string) v1.Container {
 
+	envVars := []v1.EnvVar{
+		{Name: "ROOK_POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
+		{Name: "ROOK_FILESYSTEM_ID", Value: filesystemID},
+		{Name: "ROOK_ACTIVE_STANDBY", Value: strconv.FormatBool(fs.Spec.MetadataServer.ActiveStandby)},
+		opmon.ClusterNameEnvVar(fs.Namespace),
+		opmon.EndpointEnvVar(),
+		opmon.AdminSecretEnvVar(),
+		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
+		k8sutil.ConfigOverrideEnvVar(),
+	}
+	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars()...)
+
 	return v1.Container{
 		Args: []string{
 			"ceph",
@@ -155,17 +168,7 @@ func mdsContainer(fs cephv1beta1.Filesystem, filesystemID, version string) v1.Co
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),
 		},
-		Env: []v1.EnvVar{
-			{Name: "ROOK_POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
-			{Name: "ROOK_FILESYSTEM_ID", Value: filesystemID},
-			{Name: "ROOK_ACTIVE_STANDBY", Value: strconv.FormatBool(fs.Spec.MetadataServer.ActiveStandby)},
-			opmon.ClusterNameEnvVar(fs.Namespace),
-			opmon.EndpointEnvVar(),
-			opmon.AdminSecretEnvVar(),
-			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-			k8sutil.ConfigOverrideEnvVar(),
-		},
+		Env:       envVars,
 		Resources: fs.Spec.MetadataServer.Resources,
 	}
 }

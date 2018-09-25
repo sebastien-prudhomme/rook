@@ -6,7 +6,7 @@ indent: true
 
 # OpenShift
 
-[OpenShift](https://www.openshift.com/) adds a number of security and other enhancements to Kubernetes. In particular, [security context constraints](https://blog.openshift.com/understanding-service-accounts-sccs/) allow the cluster admin to define exactly which permissions are allowed to pods running in the cluster. You will need to define those permissions that allow the Rook pods to run. 
+[OpenShift](https://www.openshift.com/) adds a number of security and other enhancements to Kubernetes. In particular, [security context constraints](https://blog.openshift.com/understanding-service-accounts-sccs/) allow the cluster admin to define exactly which permissions are allowed to pods running in the cluster. You will need to define those permissions that allow the Rook pods to run.
 
 ## Rook Privileges
 
@@ -24,11 +24,11 @@ Before starting the Rook operator or cluster, create the security context constr
 kind: SecurityContextConstraints
 apiVersion: v1
 metadata:
-  name: rook
+  name: rook-ceph
 allowPrivilegedContainer: true
 allowHostNetwork: true
 allowHostDirVolumePlugin: true
-priority: 
+priority:
 allowedCapabilities: []
 allowHostPorts: false
 allowHostPID: true
@@ -44,8 +44,9 @@ fsGroup:
   type: MustRunAs
 supplementalGroups:
   type: RunAsAny
-allowedFlexVolumes: 
-  - driver: "rook.io/rook"
+allowedFlexVolumes:
+  - driver: "ceph.rook.io/rook"
+  - driver: "ceph.rook.io/rook-ceph"
 volumes:
   - configMap
   - downwardAPI
@@ -56,7 +57,7 @@ volumes:
   - projected
   - secret
 users:
-  # A user needs to be added for each rook service account. 
+  # A user needs to be added for each rook service account.
   # This assumes running in the default sample "rook-ceph" and "rook-ceph-system" namespaces.
   # If other namespaces or service accounts are configured, they need to be updated here.
   - system:serviceaccount:rook-ceph-system:rook-ceph-system
