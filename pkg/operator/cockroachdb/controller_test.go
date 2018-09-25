@@ -177,7 +177,7 @@ func TestOnAdd(t *testing.T) {
 	pdb, err := clientset.PolicyV1beta1().PodDisruptionBudgets(namespace).Get("cockroachdb-budget", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, pdb)
-	assert.Equal(t, createAppLabels(), pdb.Spec.Selector.MatchLabels)
+	assert.Equal(t, createAppLabels("cluster-824"), pdb.Spec.Selector.MatchLabels)
 	assert.Equal(t, int32(1), pdb.Spec.MaxUnavailable.IntVal)
 
 	// verify stateful set
